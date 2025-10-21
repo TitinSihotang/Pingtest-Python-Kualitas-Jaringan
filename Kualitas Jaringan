@@ -1,0 +1,61 @@
+import subprocess
+import re
+
+def ping_host(host="8.8.8.8", count=5):
+    """Melakukan ping ke host tertentu dan mengembalikan hasil mentah."""
+    try:
+        result = subprocess.check_output(
+            ["ping", "-c", str(count), host],
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+        return result
+    except subprocess.CalledProcessError as e:
+        return e.output
+
+def analisa_ping(output):
+    """Menganalisis hasil ping dan menghitung kualitas jaringan."""
+    packets = re.search(r"(\d+) packets transmitted, (\d+) received", output)
+    loss = re.search(r"(\d+)% packet loss", output)
+    rtt = re.search(r"rtt min/avg/max/mdev = ([\d\.]+)/([\d\.]+)/([\d\.]+)/", output)
+
+    if not packets or not loss:
+        return None
+
+    transmitted = int(packets.group(1))
+    received = int(packets.group(2))
+    packet_loss = int(loss.group(1))
+    avg_latency = float(rtt.group(2)) if rtt else None
+
+    if packet_loss == 0 and avg_latency and avg_latency < 50:
+        kualitas = "Sangat Baik"
+    elif packet_loss <= 10 and avg_latency < 100:
+        kualitas = "Baik"
+    elif packet_loss <= 30:
+        kualitas = "Sedang"
+    else:
+        kualitas = "Buruk"
+
+    return {
+        "Terkirim": transmitted,
+        "Diterima": received,
+        "Packet Loss (%)": packet_loss,
+        "Rata-rata Latency (ms)": avg_latency,
+        "Kualitas Jaringan": kualitas
+    }
+
+def main():
+    print("📶 Mengukur kualitas jaringan...\n")
+    host = input("Masukkan host tujuan (default: 8.8.8.8): ") or "8.8.8.8"
+    output = ping_host(host)
+    hasil = analisa_ping(output)
+
+    if hasil:
+        print("\n Hasil Pengukuran Jaringan:")
+        for k, v in hasil.items():
+            print(f"{k:<25}: {v}")
+    else:
+        print(" Gagal melakukan ping. Periksa koneksi jaringan Anda.")
+
+if __name__ == "__main__":
+    main()
